@@ -1,7 +1,10 @@
 import React from "react";
-import Card from "./components/Card";
+import { Route, Routes } from "react-router-dom";
+import axios from "axios";
 import Drawer from "./components/Drawer";
 import Header from "./components/Header";
+import Home from "./pages/Home";
+import Favorites from "./pages/Favorites";
 
 
 function App() {
@@ -10,60 +13,95 @@ function App() {
 
   const [cartItems, setCartItems] = React.useState([]);
 
+  const [favorites, setFavorites] = React.useState([]);
+
   const [cartOpened, setCartOpened] = React.useState(false);
 
-  React.useEffect(() => {
-    fetch('https://65e1fecda8583365b317c42e.mockapi.io/items')
-      .then(
-        (res) => {
-          return res.json()
-        }
-      )
-      .then(
-        (json) => {
-          setItems(json)
-        });
-  },[]);
+  const [searchValue, setSearchValue] = React.useState('');
 
-  const onAddToCart=(obj)=>{
+  React.useEffect(() => {
+    axios.get('https://65e1fecda8583365b317c42e.mockapi.io/items').then(res => {
+      setItems(res.data);
+    });
+    axios.get('https://65e1fecda8583365b317c42e.mockapi.io/cart').then(res => {
+      setCartItems(res.data);
+    });
+    // favorites нет в MockAPI
+    // axios.get('https://65e1fecda8583365b317c42e.mockapi.io/favorites').then(res => {
+    //   setFavorites(res.data);
+    // })
+  }, []);
+
+  const onAddToCart = (obj) => {
+    axios.post('https://65e1fecda8583365b317c42e.mockapi.io/cart', obj);
     setCartItems(prev => [...prev, obj]);
   }
 
+  const onRemoveItem = (id) => {
+    axios.delete(`https://65e1fecda8583365b317c42e.mockapi.io/cart/${id}`);
+    setCartItems(prev => prev.filter(item => item.id !== id));
+  }
 
+  const onAddToFavorite = /*async*/ (obj) => {
+    // favorites нет в MockAPI
+    try {
+      if (favorites.find(favObj => favObj.imageUrl === obj.imageUrl)) {
+        // axios.delete(`https://65e1fecda8583365b317c42e.mockapi.io/favorites/${id}`);
+        setFavorites(prev => prev.filter(item => item.imageUrl !== obj.imageUrl));
+      }
+      else{
+      //const {data} = await axios.post('https://65e1fecda8583365b317c42e.mockapi.io/favorites', obj);
+      // setFavorites(prev => [...prev, data]);
+      setFavorites(prev => [...prev, obj]);
+      }
+    } catch (error) {
+      alert("Не удалось добавить в фавориты");
+    }
+
+    
+  }
+
+  const onChangeSearchInput = (event) => {
+    setSearchValue(event.target.value);
+  }
 
   return (
     <div className="wrapper clear">
 
-      {cartOpened && <Drawer items={cartItems} onClose={() => setCartOpened(false)} />}
+      {cartOpened && <Drawer items={cartItems} onClose={() => setCartOpened(false)} onRemove={onRemoveItem} />}
 
 
       <Header
         onClickCart={() => setCartOpened(true)}
-
       />
-
-      <div className="content p-40">
-        <div className="d-flex align-center justify-between mb-40">
-          <h1>Все кроссовки</h1>
-          <div className="search-block d-flex">
-            <img src="/img/search.svg" alt="Search" />
-            <input placeholder="Поиск ... " />
-          </div>
-        </div>
-
-        <div className="d-flex flex-wrap">
-          {items.map((item) => (
-            <Card
-              title={item.title}
-              price={item.price}
-              imageUrl={item.imageUrl}
-              onPlus={(obj)=>onAddToCart(obj)}
-              onFavorite={() => console.log('Добавили в закладки')}
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Home
+              items={items}
+              searchValue={searchValue}
+              setSearchValue={setSearchValue}
+              onChangeSearchInput={onChangeSearchInput}
+              onAddToFavorite={onAddToFavorite}
+              onAddToCart={onAddToCart}
             />
-          ))}
-        </div>
+          }
+          exact
+        />
+        <Route
+          path="/favorites"
+          element={
+            <Favorites
+              items={favorites}
+              onAddToFavorite={onAddToFavorite}
+            />
+          }
+          exact
+        />
+      </Routes>
 
-      </div>
+
 
     </div>
   );
